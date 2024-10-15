@@ -1,5 +1,6 @@
 library(tidyverse)
 library(viridis)
+library(svglite)
 
 set.seed(123) #CONTROL RANDOMNESS
 
@@ -61,32 +62,32 @@ ggplot(graph1.df, #PROVIDE OUR DATA SET GLOBALLY TO ALL ELEMENTS
       "Prairie\nwarbler",
       "Chestnut-sided\nwarbler",
       "Field\nsparrow",
-      "Chipping\nsprarrow"
+      "Chipping\nsparrow"
     ),
     limits = rev(levels(factor(graph1.df$species))) #SORT THE LEGEND KEYS TO MATCH THE ORDER IN THE FIGURE.
   ) +
   theme(
     panel.background = element_rect(fill = "white"), #ELIMINATE GRAY BACKGROUND
     axis.line = element_line(color = "black", linewidth = 1.2), #INTENSIFY THE AXES LINES
-    axis.title = element_text(size = 20, face = "bold"), #MAKE THE AXES TITLES EASIER TO READ
-    axis.text = element_text(size = 18), #ENLARGE AXIS LABELS.
-    legend.text = element_text(size = 18), #SAME
+    axis.title = element_text(size = 22, face = "bold", color = "black"), #MAKE THE AXES TITLES EASIER TO READ
+    axis.text = element_text(size = 20, color = "black"), #ENLARGE AXIS LABELS.
+    legend.text = element_text(size = 20, color = "black"), #SAME
     axis.ticks.length = unit(0.3, "cm"), #ENLARGE THE TICKS A LITTLE SO IT'S EASIER TO SEE THEM AND TO LINK MATERIAL TYPES BETTER WITH THEIR BARS.
     axis.title.y = element_text(margin = margin(0, 0.5, 0, 0, unit = "cm")), #SPACE THE Y AXIS TITLE AWAY FROM ITS LABELS.
     axis.title.x = element_text(margin = margin(0.5, 0, 0, 0, unit = "cm")),
-    legend.title = element_text(margin = margin(0, 0.5, 0, 0, unit = "cm"), size = 20, face = "bold"),
+    legend.title = element_text(margin = margin(0, 0.5, 0, 0, unit = "cm"), size = 20, face = "bold", color = "black"), 
     legend.key.height = unit(0.25, "cm"), #EXPAND THE LEGEND KEYS TO ACCOMMODATE MULTI-LINE LABELS.
     legend.key.width = unit(1.25, "cm"),
     panel.grid.major.x = element_line(color = "gray60"), #ADD VERTICAL GRID LINES AT KEY POINTS BUT ZEBRA-STRIPE THEM AND USE GRAYS TO DE-EMPHASIZE THEM.
     panel.grid.minor.x = element_line(color = "gray80"),
     legend.key.spacing.y = unit(0.3, "cm"), #SPACE THE LEGEND KEYS APART FROM EACH OTHER
-    legend.justification = "center",
-    legend.box = "horizontal",
+    legend.justification = "center", #CENTER ALIGN THE LEGEND
+    legend.box = "horizontal", #PLACE IT HORIZONTAL AT THE TOP
     legend.position = "top",
-    legend.margin = margin(0, 6, 0, 0, unit = "cm")
+    legend.margin = margin(0, 7, 0, 0, unit = "cm") #BUMP THE LEGEND TO THE LEFT BY INCREASING THE RIGHT MARGIN.
   )
 
-ggsave(filename = "barplot.png", height = 8.4, width = 9.8, dpi = "print") #SAVE IT PROGRAMMATICALLY TO INSPECT FOR PROPER SIZING.
+ggsave(filename = "barplot.svg", height = 8.4, width = 9.8, dpi = "print") #SAVE IT PROGRAMMATICALLY AS A VECTOR-GRAPHICS FILE TYPE, THEN INSPECT AND ITERATE FOR PROPER SIZING.
 
 # GRAPH 2 (BOXPLOT) -----------------------------------------------------------------
 
@@ -160,8 +161,9 @@ ggplot(data = graph2.df, #MAP DATA SET GLOBALLY
     axis.line.x = element_blank(), #ELIMINATE X AXIS LINE AND LABELS
     axis.text.x = element_blank(),
     axis.title.y = element_text(size = 20, 
-                                face = "bold"), #MAKE THE Y AXIS TITLE EASIER TO READ BY MAKING IT BIGGER AND BOLD. 
-    axis.text.y = element_text(size = 18), #MAKE THE LABELS LARGER.
+                                face = "bold", 
+                                color = "black"), #MAKE THE Y AXIS TITLE EASIER TO READ BY MAKING IT BIGGER AND BOLD. 
+    axis.text.y = element_text(size = 18, color = "black"), #MAKE THE LABELS LARGER.
     axis.ticks.length.y = unit(0.3, "cm"), #ADD Y AXIS TICKS
     panel.grid.major.y = element_line(color = "gray80") #ADD SOME GRID LINES BUT  USE GRAYS TO DE-EMPHASIZE THEM.
   ) +
@@ -172,7 +174,7 @@ ggplot(data = graph2.df, #MAP DATA SET GLOBALLY
                               margin = margin(r = -160, unit = "pt")), #FORCE THE AXIS LABEL QUITE A WAYS TO THE RIGHT
   plot.margin = margin(2, 0, 0, 0.2, "cm") #EXPAND THE TOP AND LEFT PLOT MARGINS
   ) 
-ggsave(filename = "boxplot.png", height = 7.0, width = 7.0, dpi = "print") #SAVE IT PROGRAMMATICALLY TO INSPECT FOR PROPER SIZING.
+ggsave(filename = "boxplot.svg", height = 7.0, width = 7.0, dpi = "print") #SAVE IT PROGRAMMATICALLY TO INSPECT FOR PROPER SIZING.
 
 
 # GRAPH 3 (SCATTERPLOT WITH TREND LINE) -----------------------------------------------------------------
@@ -226,8 +228,9 @@ ggplot(data = graph3.df, #SET DATA GLOBALLY
     panel.background = element_rect(fill = "white"), #ELIMINATE GRAY BACKGROUND
     axis.line = element_line(color = "black", linewidth = 1.2), #INTENSIFY THE AXIS LINES
     axis.title = element_text(size = 20, 
-                                face = "bold"), #MAKE THE AXIS TITLES EASIER TO READ BY MAKING THEM BIGGER AND BOLD. 
-    axis.text = element_text(size = 18), #MAKE AXIS LABELS LARGER.
+                                face = "bold", 
+                              color = "black"), #MAKE THE AXIS TITLES EASIER TO READ BY MAKING THEM BIGGER AND BOLD. 
+    axis.text = element_text(size = 18, color = "black"), #MAKE AXIS LABELS LARGER.
     axis.ticks.length = unit(0.3, "cm"), #MAKE AXIS TICKS AN APPROPRIATE SIZE.
     panel.grid.major = element_blank(), #ELIMINATE ALL GRID LINES
     panel.grid.minor = element_blank(),
@@ -235,4 +238,4 @@ ggplot(data = graph3.df, #SET DATA GLOBALLY
     axis.title.x = element_text(margin = margin(t = 0.5, unit = "cm"))
   )
 #SAVE OUR PLOT
-ggsave("scatterplot.png", height = 7.0, width = 9.5, dpi = "print")
+ggsave("scatterplot.svg", height = 7.0, width = 9.5, dpi = "print")
