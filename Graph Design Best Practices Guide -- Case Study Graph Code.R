@@ -7,8 +7,7 @@ set.seed(123) #CONTROL RANDOMNESS
 
 # GRAPH 1 (BAR GRAPH) -----------------------------------------------------------------
 
-
-#CREATE FAKE DATA
+#CREATE FAKE GROUP MEAN DATA FIRST
 graph1.df = data.frame(
   materials = rep( #OUR MATERIAL TYPES
     c(
@@ -27,67 +26,139 @@ graph1.df = data.frame(
       "Needles",
       "Plant down",
       "Rootlets",
-      "Shedded coarse stems",
+      "Shredded coarse stems",
       "Sticks"
     ),
-    each = 4
+    each = 4  #4 SPECIES
   ),
-  species = rep(c("PRAW", "CSWA", "FISP", "CHSP"), times = 17), #OUR SPECIES
-  prop.nest.mass = rbeta( #OUR RANDOM PROP. NEST MATERIAL DATA
+  species = rep(c("Setophaga discolor", "Setophaga pensylvanica", "Spizella pusilla", "Spizella passerina"), times = 17 ), #17 MATERIALS
+  prop.nest.mass = rbeta( #OUR RANDOM SUBGROUP MEAN DATA
     n = 4 * 17,
     shape1 = 1,
-    shape2 = 20
+    shape2 = 15
   )
 )
 
-#OUR PLOT
-ggplot(graph1.df, #PROVIDE OUR DATA SET GLOBALLY TO ALL ELEMENTS
-       aes(y = materials, x = prop.nest.mass, fill = species)) + #MAP OUR X, Y, AND FILL COLOR AESTHETICALLY GLOBALLY TO APPLY TO ALL ELEMENTS. FLIP THE X AND Y AESTHETICS FOR EASE OF READABILITY.
-  geom_bar(stat = "identity", #BARS REPRESENT MEAN NEST MASS PROPORTION
-           position = position_dodge(width = 0.75), #THIS DODGES ONE SPECIES' BARS AWAY FROM THE NEXT SPECIES' BARS.
-           width = 0.5) + #MAKE THE BARS THEMSELVES THINNER SO THERE IS WHITE SPACE BTW. NEIGHBORING BARS.
-  scale_y_discrete("Material type", #USE LINE BREAKS (\n) TO BREAK ONTO MULTIPLE LINES 
-                   limits = rev(levels(factor(graph1.df$materials)))) + #SORT THE AXIS ITEMS ALPHABETICALLY
+#WE NOW WANT TO EXPAND THESE TO PRODUCE 10 RAW DATA POINTS FOR EACH SUBGROUP BASED ON THE ROUGH MEANS WE GOT ABOVE
+graph1.df.raw = data.frame(materials = character(0),
+                           species = character(0),
+                           prop.nest.mass = numeric(0)) #BLANK DATA FRAME TO HOLD OUR RANDOM DRAWS
+
+for(row in 1:nrow(graph1.df)) { #FOR EACH SPECIES/MATERIAL COMBO...
+  for(data in 1:10) { #DRAW A RANDOM VALUE 10 TIMES
+    
+    graph1.df.raw = 
+      rbind(graph1.df.raw,
+            data.frame(materials = graph1.df$materials[row],
+                       species = graph1.df$species[row],
+                       prop.nest.mass = 
+                         rbeta(1, shape1 = graph1.df$prop.nest.mass * 5,
+                               shape2 = (1-graph1.df$prop.nest.mass) * 5))) #HERE, WE USE THE MEAN PROPORTION FROM THE DATA FRAME ABOVE AS THE MEAN VALUE IN A NEW RBETA DRAW.
+  }
+}
+
+#NOW, WE OVERWRITE THE MEANS DATA FRAME ABOVE WITH THE ACTUAL NEW MEANS OF THE RAW DATA WE RANDOMLY GENERATED, JUST SO THEY MATCH.
+graph1.df = graph1.df.raw %>% 
+  group_by(species, materials) %>% 
+  summarize(mean.prop = mean(prop.nest.mass))
+
+#I THINK 17 MATERIALS IS TOO MANY TO PRESENT. LET'S INSTEAD CHOOSE 4 THAT SHOW THE RANGE IN VARIATION BETWEEN SPECIES AS EXEMPLARS.
+(graph1.df.ranges = graph1.df %>% 
+  group_by(materials) %>% #FOR EACH MATERIAL...
+  summarize(prop.range = max(mean.prop) - min(mean.prop)) %>% #WHAT'S THE RANGE IN MEANS SEEN ACROSS SPECIES (MAX-MIN)?
+  arrange(desc(prop.range)))
+
+#SHREDDED COARSE STEMS IS HIGHEST (0.158), FLOWERS IS LOWEST (0.023). MOSS (.0877) AND STICKS (0.0458) ARE EQUIDISTANT IN THE MIDDLE. PLUS, ALL 4 OF THESE SEEM LIKE THEY'D BE UNIVERSALLY RELATABLE MATERIALS FOR MOST AUDIENCES, UNLIKE, SAY, "ANTHROPOGENIC" OR "PLANT DOWN", SO THAT'S A BONUS. 
+
+#CUT TO JUST THOSE MATERIALS FOR GRAPHING
+graph1.df.short = graph1.df %>% 
+  filter(materials %in% c("Shredded coarse stems", "Moss", "Sticks", "Flowers")) 
+graph1.df.raw.short = graph1.df.raw %>% 
+  filter(materials %in% c("Shredded coarse stems", "Moss", "Sticks", "Flowers"))
+
+#TO PLOT THESE SUB-GROUPS IN A LOGICAL ORDER, WE CAN REDEFINE THEM AS FACTORS AND SET THEIR LEVELS AND LABELS HERE. 
+graph1.df.short$materials = factor(graph1.df.short$materials , 
+                                   levels = rev(c("Shredded coarse stems", "Moss", "Sticks", "Flowers")),
+                                   labels = rev(c("Shredded\ncoarse\nstems", "Moss", "Sticks", "Flowers")))
+graph1.df.raw.short$materials = factor(graph1.df.raw.short$materials , 
+                                   levels = rev(c("Shredded coarse stems", "Moss", "Sticks", "Flowers")),
+                                   labels = rev(c("Shredded\ncoarse\nstems", "Moss", "Sticks", "Flowers")))
+
+#OUR PLOT!
+ggplot(graph1.df.short, #PROVIDE THIS DATA SET FOR MOST ELEMENTS, BUT NOT ALL
+       aes(y = materials, #FLIP MATERIALS TO THE Y AXIS TO PLOT THE LONG LABELS HORIZONTALLY.
+           x = mean.prop, #FLIP PROPORTION NEST MASS TO X AXIS.
+           fill = species)) + #USE FILL COLOR FOR SPECIES
+  #THE FIRST ELEMENT (SO IT'S ON THE BOTTOM) IS THE CONNECTING LINES THAT LINK THE RAW DATA TO EACH OTHER IN EACH SUBGROUP, HELPING CONVEY THE RANGE OF THE DATA AT A GLANCE. 
+  geom_segment(inherit.aes = FALSE, #THIS USES DIFFERENT MAPPING AND DATA.
+               #HERE, WE USE THE RAW DATA SET TO FIND THE MIN AND MAX VALUES OF THE RAW PROPORTION MASS DATA AND SET THOSE AS X AND XENDS FOR THE SEGMENTS. WE ALSO REPLICATE THE POSITION_DODGE USED BY LATER LAYERS HERE BY APPLYING OFFSET VALUES TO THE Y POSITIONS. 
+               data = graph1.df.raw.short %>% 
+                 mutate(materials = as.numeric(factor(materials)),
+                        species = (as.numeric(factor(species))),
+                        species_recode = recode(species,
+                                                `1` = -0.3, 
+                                                `2` = -0.1,
+                                                `3` = 0.1, 
+                                                `4` = 0.3)) %>% 
+                 mutate(y_pos = materials + species_recode) %>% 
+                 group_by(species, materials) %>% 
+                 summarize(x_min = min(prop.nest.mass), 
+                           x_max = max(prop.nest.mass),
+                           y_pos = first(y_pos)),
+               #MAP WHERE THE SEGMENTS SHOULD BE USING THE CALCULATED VALUES ABOVE.
+               aes(x = x_min, 
+                   xend = x_max, 
+                   y = y_pos, 
+                   yend = y_pos, 
+                   group = species), 
+               #MAKE THESE CONNECTING LINES THIN AND GRAY TO BE DE-EMPHASIZED.
+               size = 0.6, 
+               color = "gray80") +
+  #NEXT, PLOT THE RAW DATA AS THIN GRAY VERTICAL BARS, ALA A BAR CODE PLOT. 
+  geom_point(inherit.aes = FALSE, #THIS ALSO USES THE RAW DATA AND DIFFERENT MAPPING.
+             data = graph1.df.raw.short,
+             mapping = aes(x = prop.nest.mass, 
+                           y = materials, 
+                           group = species),
+             color = "gray80",
+             shape = "│", #CUSTOM UNICODE SHAPE
+             position = position_dodge(width = 0.8), #DODGE THE SUBGROUPS APART VERICALLY INTO THEIR OWN "LINES"
+             size = 4.5, 
+             show.legend = FALSE) + #DON'T ADD THIS LAYER TO THE LEGEND.
+  geom_point(shape = 21, #A CIRCLE WITH BOTH FILL AND STROKE COLORS.
+           position = position_dodge(width = 0.8), #SAME AS ABOVE.
+           size = 6) + 
+  scale_y_discrete("") + #ELIMINATE THE REDUNDANT Y-AXIS TITLE
   scale_x_continuous(
-    "Percent of total nest mass", 
-    expand = c(0, 0), #REMOVE THE GAP BETWEEN THE X AXIS LINE AND THE BOTTOMS OF THE BARS.
-    limits = c(0, 0.25), #ELIMINATE AXIS TRUNCATION--WE HAVE TO GO OUT A LITTLE FURTHER THAN THE BREAKS TO PREVENT THE LABEL FROM BEING CUT OFF.
-    breaks = c(0, 0.06, 0.12, 0.18, 0.24), #PROVIDE EVEN BREAKS THAT MAKE IT TO THE NEW LIMIT.
-    labels = c(0, 6, 12, 18, 24)
+    "Percent of total nest mass", #X-AXIS TITLE
+    expand = c(0, 0), #REMOVE THE GAP THAT OTHERWISE GETS PLACED BETWEEN THE Y AXIS AND THE STARTS OF THE DATA.
+    limits = c(-0.01, 0.61), #ENSURE ALL THE DATA ARE SHOWN BY FINDING GOOD BREAK POINTS AND GOING JUST A LITTLE BEYOND THEM. 
+    breaks = c(0, 0.15, 0.3, 0.45, 0.6), #PROVIDE EVEN BREAKS AT REASONABLE VALUES, INCLUDING AT BOTH ENDS. 
+    labels = c(0, 15, 30, 45, 60) #MAKE THE LABELS WHOLE %S INSTEAD OF PROPORTIONS LIKE THE RAW DATA.
   ) +
   scale_fill_discrete(
-    "Species", #USE A LINE BREAK TO SEPARATE THE LEGEND TITLE FROM THE KEYS
+    "", #ELIMINATE THE REDUNDANT LEGEND TITLE--IT'S CLEAR THESE ARE SPECIES.
     type = c(viridis(4, end = 0.9)), #SWITCH TO THE VIRIDIS COLORBLIND-FRIENDLY PALETTE, BUT AVOID THE YELLOW COLOR AT THE END THAT LACKS CONTRAST WITH A WHITE BACKGROUND.
-    labels = c( #USE ACTUAL SPECIES COMMON NAMES, ELIMINATING THE NEED TO EYE-DART TO THE CAPTION.
-      "Prairie\nwarbler",
-      "Chestnut-sided\nwarbler",
-      "Field\nsparrow",
-      "Chipping\nsparrow"
-    ),
-    limits = rev(levels(factor(graph1.df$species))) #SORT THE LEGEND KEYS TO MATCH THE ORDER IN THE FIGURE.
+    limits = rev(levels(factor(graph1.df$species))), #SORT THE LEGEND KEYS TO MATCH THE ORDER IN THE FIGURE.
+    labels = c("Spizella\npusilla", "Spizella\npasserina", "Setophaga\npensylvanica", "Setophaga\ndiscolor") #ADD IN LINE BREAKS TO FIT ALL THE LABELS IN.
   ) +
   theme(
     panel.background = element_rect(fill = "white"), #ELIMINATE GRAY BACKGROUND
     axis.line = element_line(color = "black", linewidth = 1.2), #INTENSIFY THE AXES LINES
     axis.title = element_text(size = 22, face = "bold", color = "black"), #MAKE THE AXES TITLES EASIER TO READ
     axis.text = element_text(size = 20, color = "black"), #ENLARGE AXIS LABELS.
-    legend.text = element_text(size = 20, color = "black"), #SAME
-    axis.ticks.length = unit(0.3, "cm"), #ENLARGE THE TICKS A LITTLE SO IT'S EASIER TO SEE THEM AND TO LINK MATERIAL TYPES BETTER WITH THEIR BARS.
-    axis.title.y = element_text(margin = margin(0, 0.5, 0, 0, unit = "cm")), #SPACE THE Y AXIS TITLE AWAY FROM ITS LABELS.
-    axis.title.x = element_text(margin = margin(0.5, 0, 0, 0, unit = "cm")),
-    legend.title = element_text(margin = margin(0, 0.5, 0, 0, unit = "cm"), size = 20, face = "bold", color = "black"), 
-    legend.key.height = unit(0.25, "cm"), #EXPAND THE LEGEND KEYS TO ACCOMMODATE MULTI-LINE LABELS.
-    legend.key.width = unit(1.25, "cm"),
-    panel.grid.major.x = element_line(color = "gray60"), #ADD VERTICAL GRID LINES AT KEY POINTS BUT ZEBRA-STRIPE THEM AND USE GRAYS TO DE-EMPHASIZE THEM.
+    legend.text = element_text(size = 18, color = "black", face = "italic"), #SAME
+    axis.ticks.length = unit(0.3, "cm"), #ENLARGE THE TICKS A LITTLE SO IT'S EASIER TO SEE THEM AND TO LINK MATERIAL TYPE LABELS BETTER WITH THEIR DATA VISUALLY.
+    axis.title.x = element_text(margin = margin(0.5, 0, 0, 0, unit = "cm")), #ADD SPACE BETWEEN THE AXIS TITLE AND THE LABELS FOR EASIER PARSING.
+    panel.grid.major.x = element_line(color = "gray60"), #ADD VERTICAL GRID LINES AT KEY INTERVALS BUT ZEBRA-STRIPE THEM AND USE GRAYS TO DE-EMPHASIZE THEM.
     panel.grid.minor.x = element_line(color = "gray80"),
-    legend.key.spacing.y = unit(0.3, "cm"), #SPACE THE LEGEND KEYS APART FROM EACH OTHER
-    legend.justification = "center", #CENTER ALIGN THE LEGEND
+    legend.key.spacing.x = unit(0.4, "cm"), #SPACE THE LEGEND KEYS APART FROM EACH OTHER SOMEWHAT
+    legend.justification = "left", #CENTER ALIGN THE LEGEND
     legend.box = "horizontal", #PLACE IT HORIZONTAL AT THE TOP
-    legend.position = "top",
-    legend.margin = margin(0, 7, 0, 0, unit = "cm") #BUMP THE LEGEND TO THE LEFT BY INCREASING THE RIGHT MARGIN.
+    legend.position = "top" #PLACE IT ABOVE THE GRAPH
   )
 
-ggsave(filename = "barplot.svg", height = 8.4, width = 9.8, dpi = "print") #SAVE IT PROGRAMMATICALLY AS A VECTOR-GRAPHICS FILE TYPE, THEN INSPECT AND ITERATE FOR PROPER SIZING.
+ggsave(filename = "barplot.svg", height = 8.3, width = 8.3, dpi = "print") #SAVE IT PROGRAMMATICALLY AS A VECTOR-GRAPHICS FILE TYPE, THEN INSPECT AND ITERATE FOR PROPER SIZING. A WIDTH OF 8.3 INCHES IS ROUGHLY STANDARD FULL PAGE WIDTH. OTHER COMMON HEIGHTS ARE 3.5 IN AND 7.1 IN FOR SINGLE AND DOUBLE COLUMNS. CHECK WITH YOUR TARGET JOURNAL FOR MORE DETAILS 
 
 # GRAPH 2 (BOXPLOT) -----------------------------------------------------------------
 
@@ -97,6 +168,8 @@ graph2.df = data.frame(
   ecosystem = rep(c("Open", "Closed"), each = 60),
   perc.endemic.richness = c(rnorm(60, 46, 11), rnorm(60, 54, 13))
 )
+
+#BECAUSE SO MANY GROUPS HAVE RELATIVELY LITTLE DATA, I WANT TO COLLAPSE THE DATA DOWN A BIT. 
 
 #OUR PLOT
 ggplot(data = graph2.df, #MAP DATA SET GLOBALLY
@@ -173,7 +246,7 @@ ggplot(data = graph2.df, #MAP DATA SET GLOBALLY
                               hjust = 0, #MAKE LEFT-JUSTIFIED.
                               margin = margin(r = -160, unit = "pt")), #FORCE THE AXIS LABEL QUITE A WAYS TO THE RIGHT
   plot.margin = margin(2, 0, 0, 0.2, "cm") #EXPAND THE TOP AND LEFT PLOT MARGINS
-  ) 
+  )
 ggsave(filename = "boxplot.svg", height = 7.0, width = 7.0, dpi = "print") #SAVE IT PROGRAMMATICALLY TO INSPECT FOR PROPER SIZING.
 
 
